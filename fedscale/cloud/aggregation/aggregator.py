@@ -684,7 +684,12 @@ class Aggregator(job_api_pb2_grpc.JobServiceServicer):
         """Save model to the wandb server if enabled"""
         if parser.args.save_checkpoint and self.last_saved_round < self.round:
             self.last_saved_round = self.round
-            np.save(self.temp_model_path, self.model_weights)
+            # np.save(self.temp_model_path, self.model_weights)
+            np.save(
+                self.temp_model_path,
+                np.array(self.model_weights, dtype=object),
+                allow_pickle=True,
+                )
             if self.wandb != None:
                 artifact = self.wandb.Artifact(
                     name="model_" + str(self.this_rank), type="model"
