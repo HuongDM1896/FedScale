@@ -244,7 +244,121 @@ def process_cmd(yaml_file, local=False):
 
     print(f"Submitted job, please check your logs {job_conf['log_path']}/logs/{job_conf['job_name']}/{time_stamp} for status")
     print(f"if you cannot find logs directory on the path, you need to check ""{job_name}_logging"" log file under FEDSCALE root directory.")
+    print(f"Tracking process is started.")
+    # Start tracking the processes for this job and block until they finish
+    tracking(job_conf.get('job_name', job_name))
 
+def _build_proc_tree(all_lines):
+    """
+    Parse lines from `ps -eo pid,ppid,cmd` (list of lines) into maps:
+      procs[pid] = (ppid, cmdline)
+      children[ppid] = [child_pid, ...]
+    """
+    procs = {}
+    children = {}
+    for line in all_lines:
+        parts = line.strip().split()
+        if len(parts) < 3:
+            continue
+        # pid, ppid, cmd (cmd may contain spaces)
+        pid = int(parts[0])
+        ppid = int(parts[1])
+        cmd = " ".join(parts[2:])
+        procs[pid] = (ppid, cmd)
+        children.setdefault(ppid, []).append(pid)
+    return procs, children
+
+def _print_tree_from(pid, procs, children, indent=0, visited=None):
+    if visited is None:
+        visited = set()
+    if pid in visited:
+        print(" " * indent + f"{pid} (cycle?)")
+        return
+    visited.add(pid)
+    if pid not in procs:
+        print(" " * indent + f"{pid} (gone)")
+        return
+    ppid, cmd = procs[pid]
+    print(" " * indent + f"{pid}  ppid={ppid}  {cmd}")
+    for c in sorted(children.get(pid, [])):
+        _print_tree_from(c, procs, children, indent + 4, visited)
+
+def tracking(job_name: str, poll_interval: float = 2.0, grace_polls: int = 3, clear_screen: bool = True):
+    """
+    Track processes whose command line contains `job_name`.
+    - poll_interval: seconds between refreshes
+    - grace_polls: number of consecutive polls with zero matching procs before exiting
+    - clear_screen: whether to clear terminal between updates (set False if you don't want that)
+    """
+    consecutive_empty = 0
+    try:
+        while True:
+            # get process list
+            proc = subprocess.Popen(["ps", "-eo", "pid,ppid,cmd"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            out, _ = proc.communicate()
+            lines = out.decode("utf-8").splitlines()
+            # first line is header; skip it
+            body = lines[1:] if len(lines) > 0 else []
+
+            procs, children = _build_proc_tree(body)
+
+            # find matching pids: any pid whose cmd contains job_name
+            matching_pids = [pid for pid, (_, cmd) in procs.items() if job_name in cmd]
+
+            if clear_screen:
+                # clear terminal for nicer view
+                os.system("clear")
+
+            print(f"Tracking job_name='{job_name}'  —  {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"Poll interval: {poll_interval}s — Matches: {len(matching_pids)}")
+            print("=" * 80)
+
+            if matching_pids:
+                consecutive_empty = 0
+                # print tree starting from each matching pid, but avoid duplicate subtrees
+                printed = set()
+                for pid in sorted(matching_pids):
+                    # climb to highest ancestor inside our procs map to show full chain if desired
+                    root = pid
+                    # optionally find a root that doesn't have parent in our matching set (so tree shown once)
+                    while True:
+                        ppid, _ = procs.get(root, (None, None))
+                        if ppid is None or ppid == 0:
+                            break
+                        if ppid not in procs:
+                            break
+                        # stop if parent cmdline also contains job_name to avoid repeating subtree
+                        if job_name in procs.get(ppid, ("", ""))[1]:
+                            root = ppid
+                            continue
+                        break
+
+                    if root in printed:
+                        continue
+                    _print_tree_from(root, procs, children)
+                    printed.add(root)
+                    print("-" * 80)
+            else:
+                consecutive_empty += 1
+                print("No matching processes found.")
+
+            # exit once we've seen empty state enough times
+            if consecutive_empty >= grace_polls:
+                print(f"No processes matching '{job_name}' for {consecutive_empty} polls — exiting tracker.")
+                break
+
+            # wait
+            time.sleep(poll_interval)
+    except KeyboardInterrupt:
+        print("\nTracking interrupted by user (KeyboardInterrupt). Exiting tracking.")
+
+# -------------------------
+# How to call:
+#   after you submit the job in process_cmd(...), call:
+#       tracking(job_conf['job_name'])
+#
+# or if you want to keep it optional:
+#       tracking(job_conf.get('job_name', 'fedscale_job'))
 
 def terminate(job_name):
 
@@ -279,7 +393,7 @@ def terminate(job_name):
             print(f"Shutting down job on {vm_ip}")
             with open(f"{job_name}_logging", 'a') as fout:
                 subprocess.Popen(f'ssh {job_meta["user"]}{vm_ip} "python {current_path}/shutdown.py {job_name}"',
-                                shell=True, stdout=fout, stderr=fout)
+                                shell=True, stdout=fout, stderr=fout)    
 
 def submit_to_k8s(yaml_conf):
     # TODO: switch to real deployment configs, pod configs are only for testing usage right now
