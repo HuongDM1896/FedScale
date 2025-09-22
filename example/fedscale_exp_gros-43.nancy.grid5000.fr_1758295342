@@ -1,0 +1,2 @@
+hostname fullname nproc duration startTime endTime hostlist
+gros-43.nancy.grid5000.fr fedscale 54 42.0314462184906 1758295353 1758295395 gros-43.nancy.grid5000.fr;gros-44.nancy.grid5000.fr;gros-51.nancy.grid5000.fr
