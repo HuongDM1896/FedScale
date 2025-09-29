@@ -288,7 +288,7 @@ def tracking(job_name: str, poll_interval: float = 2.0, grace_polls: int = 3, cl
     Track processes whose command line contains `job_name`.
     - poll_interval: seconds between refreshes
     - grace_polls: number of consecutive polls with zero matching procs before exiting
-    - clear_screen: whether to clear terminal between updates (set False if you don't want that)
+    - clear_screen: whether to clear terminal between updates (set False = don't want that)
     """
     consecutive_empty = 0
     try:
@@ -353,11 +353,11 @@ def tracking(job_name: str, poll_interval: float = 2.0, grace_polls: int = 3, cl
         print("\nTracking interrupted by user (KeyboardInterrupt). Exiting tracking.")
 
 # -------------------------
-# How to call:
+# to call:
 #   after you submit the job in process_cmd(...), call:
 #       tracking(job_conf['job_name'])
 #
-# or if you want to keep it optional:
+# or keep it optional:
 #       tracking(job_conf.get('job_name', 'fedscale_job'))
 
 def terminate(job_name):
