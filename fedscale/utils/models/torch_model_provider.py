@@ -145,7 +145,7 @@ from fedscale.utils.models.cv_models.xception import *
 from fedscale.utils.models.cv_models.xdensenet import *
 from fedscale.utils.models.cv_models.xdensenet_cifar import *
 from fedscale.utils.models.cv_models.zfnet import *
-
+from fedscale.utils.models.cv_models.custom_cnn import CustomNet
 # from fedscale.utils.models.cv_models.others.oth_quartznet import *
 
 # from fedscale.utils.models.cv_models.others.oth_pose_resnet import *
@@ -165,6 +165,7 @@ __all__ = ['get_model']
 
 
 _models = {
+    'custom_cnn': CustomNet,
     'alexnet': alexnet,
     'alexnetb': alexnetb,
 
