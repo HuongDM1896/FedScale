@@ -23,6 +23,6 @@ if __name__ == "__main__":
             "/tmp/fedscale_exp",
             [FedScale()],
             leverages= [],
-            monitors= [Mojitos(sensor_set={'user', 'rxp'})],
+            monitors= [Mojitos(sensor_set={'user', 'rxp', 'dram0'})],
             times=1
             )

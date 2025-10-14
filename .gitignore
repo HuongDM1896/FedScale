@@ -43,3 +43,7 @@ fedscale/tmp*
 fedscale/*.tflite
 fedscale/*.ckpt
 fedscale/cloud/aggregation/cache
+Log_compare
+cifar*
+docker/femnist*
+docker/tf-cifar10
