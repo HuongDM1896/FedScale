@@ -93,7 +93,7 @@ job_conf:
 #    - model_zoo: fedscale-torch-zoo
     - eval_interval: 1                     # How many rounds to run a testing on the testing set
     - rounds: 3                          # Number of rounds to run this training. We use 1000 in our paper, while it may converge w/ ~400 rounds
-    - filter_less: 21                       # Remove clients w/ less than 21 samples
+    - filter_less: 21                       # Remove clients w/ less than 21 samples - set =0 if clients less than 21.
     - num_loaders: 2
     - local_steps: 2
     - learning_rate: 0.05
@@ -103,6 +103,12 @@ job_conf:
     - save_checkpoint: False
 ```
 6. Run inside fedscale env: 
+
+dataset: 
+```bash
+fedscale dataset download femnist
+```
+
 ```bash
 fedscale driver submit benchmark/configs/femnist/conf.yml
 ```
@@ -111,3 +117,67 @@ fedscale driver submit benchmark/configs/femnist/conf.yml
 bash -i -c 'source ~/.bashrc && conda activate fedscale && cd ~/FedScale && fedscale driver submit benchmark/configs/femnist/conf.yml'
 ```
 
+Kill all the process in all nodes before re start if crash.
+
+After use expetator got blocking, cmd stop: 
+
+bash -i -c 'source ~/.bashrc && conda activate fedscale && cd ~/FedScale && fedscale driver stop femnist_expe'
+
+mdo@gros-43:~/FedScale$ ps aux | grep mdo | grep fedscale
+mdo        24188  0.0  0.0   2480   516 pts/0    T    15:31   0:00 /bin/sh -c bash -i -c 'source ~/.bashrc && conda activate fedscale && cd ~/FedScale && fedscale driver submit benchmark/configs/femnist/conf_g5k.yml'
+mdo        24189  0.0  0.0   7028  3216 pts/0    T    15:31   0:00 bash -i -c source ~/.bashrc && conda activate fedscale && cd ~/FedScale && fedscale driver submit benchmark/configs/femnist/conf_g5k.yml
+
+Find solution:
+1.
+use cmd = f"bash -i -c 'source ~/.bashrc && conda activate fedscale && cd ~/FedScale && fedscale driver submit {param} &'" " not work
+
+2. reduce number of client in setting
+
+problem of connection.
+check in main: mdo@gros-58:~/FedScale$ lsof -i:29500
+COMMAND     PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+pt_main_t 10817  mdo    7u  IPv6  41674      0t0  TCP *:29500 (LISTEN)
+pt_main_t 10817  mdo    8u  IPv6  77902      0t0  TCP gros-58.nancy.grid5000.fr:29500->gros-90.nancy.grid5000.fr:39492 (ESTABLISHED)
+pt_main_t 10817  mdo    9u  IPv6  77904      0t0  TCP gros-58.nancy.grid5000.fr:29500->gros-94.nancy.grid5000.fr:56806 (ESTABLISHED) --> ok
+
+
+pip3 install git+https://gitlab.irit.fr/sepia-pub/expetator.git@master
+upgrade expetator as repo
+
+
+
+NOOO: it is container docker. but can run in native: follow command: 
+
+```bash
+ssh hdomai@172.16.66.88 source /home/mdo/anaconda3/bin/activate fedscale && python /home/mdo/FedScale/fedscale/cloud/aggregation/aggregator.py  --time_stamp 1014_111318 --ps_ip 172.16.66.88 --job_name cifar_10_g5k --log_path /home/mdo/FedScale/benchmark --num_participants 3 --data_set cifar10 --data_dir /home/mdo/FedScale/benchmark/dataset/data/ --model custom_cnn --model_zoo fedscale-torch-zoo --eval_interval 1 --rounds 2 --filter_less 0 --num_loaders 2 --local_steps 1 --learning_rate 0.01 --batch_size 32 --test_bsz 32 --use_cuda False --save_checkpoint False --this_rank=0 --num_executors=3 --executor_configs=172.16.66.90:[1]=172.16.66.91:[1]=172.16.66.98:[1]
+```
+
+```bash
+ssh 172.16.66.90 source ~/.bashrc && conda activate fedscale && cd /home/mdo/FedScale && python /home/mdo/FedScale/fedscale/cloud/aggregation/aggregator.py --time_stamp 1014_130501 --ps_ip 172.16.66.90 --job_name test --log_path /home/mdo/FedScale/benchmark --num_participants 3 --data_set cifar10 --data_dir /home/mdo/FedScale/benchmark/dataset/data/ --model custom_cnn --model_zoo fedscale-torch-zoo --eval_interval 1 --rounds 2 --filter_less 0 --num_loaders 2 --local_steps 1 --learning_rate 0.01 --batch_size 32 --test_bsz 32 --use_cuda False --save_checkpoint False --this_rank=0 --num_executors=3 --executor_configs=172.16.66.98:[1]=172.16.66.91:[1]=172.16.66.99:[1]
+```
+
+
+and also client:
+
+```bash
+bash -c source ~/.bashrc && conda activate fedscale && cd /home/mdo/FedScale &&   python /home/mdo/FedScale/fedscale/cloud/execution/executor.py  --time_stamp 1014_130133 --ps_ip 172.16.66.90 --job_name test --log_path /home/mdo/FedScale/benchmark --num_participants 3 --data_set cifar10 --data_dir /home/mdo/FedScale/benchmark/dataset/data/ --model custom_cnn --model_zoo fedscale-torch-zoo --eval_interval 1 --rounds 2 --filter_less 0 --num_loaders 2 --local_steps 1 --learning_rate 0.01 --batch_size 32 --test_bsz 32 --use_cuda False --save_checkpoint False --this_rank=2 --num_executors=3 --cuda_device=cuda:0
+```
+
+
+SERVER: 172.16.66.90 (run tai server k can ssh)
+
+source ~/.bashrc && conda activate fedscale && cd /home/mdo/FedScale && python /home/mdo/FedScale/fedscale/cloud/aggregation/aggregator.py --time_stamp 1014_131400 --ps_ip 172.16.66.90 --job_name test --log_path /home/mdo/FedScale/benchmark --num_participants 3 --data_set cifar10 --data_dir /home/mdo/FedScale/benchmark/dataset/data/ --model custom_cnn --model_zoo fedscale-torch-zoo --eval_interval 1 --rounds 2 --filter_less 0 --num_loaders 2 --local_steps 1 --learning_rate 0.01 --batch_size 32 --test_bsz 32 --use_cuda False --save_checkpoint False --this_rank=0 --num_executors=3 --executor_configs=172.16.66.98:[1]=172.16.66.91:[1]=172.16.66.99:[1]
+
+
+CLIENT 1: 172.16.66.98
+
+ssh 172.16.66.98 source ~/.bashrc && conda activate fedscale && cd /home/mdo/FedScale && python /home/mdo/FedScale/fedscale/cloud/execution/executor.py  --time_stamp 1014_131400 --ps_ip 172.16.66.90 --job_name test --log_path /home/mdo/FedScale/benchmark --num_participants 3 --data_set cifar10 --data_dir /home/mdo/FedScale/benchmark/dataset/data/ --model custom_cnn --model_zoo fedscale-torch-zoo --eval_interval 1 --rounds 2 --filter_less 0 --num_loaders 2 --local_steps 1 --learning_rate 0.01 --batch_size 32 --test_bsz 32 --use_cuda False --save_checkpoint False --this_rank=1 --num_executors=3 --cuda_device=cuda:0
+
+CLIENT 2: 172.16.66.91
+
+ssh 172.16.66.91 source ~/.bashrc && conda activate fedscale && cd /home/mdo/FedScale && python /home/mdo/FedScale/fedscale/cloud/execution/executor.py  --time_stamp 1014_131400 --ps_ip 172.16.66.90 --job_name test --log_path /home/mdo/FedScale/benchmark --num_participants 3 --data_set cifar10 --data_dir /home/mdo/FedScale/benchmark/dataset/data/ --model custom_cnn --model_zoo fedscale-torch-zoo --eval_interval 1 --rounds 2 --filter_less 0 --num_loaders 2 --local_steps 1 --learning_rate 0.01 --batch_size 32 --test_bsz 32 --use_cuda False --save_checkpoint False --this_rank=2 --num_executors=3 --cuda_device=cuda:0
+
+
+CLIENT 2: 172.16.66.99
+
+ssh 172.16.66.99 source ~/.bashrc && conda activate fedscale && cd /home/mdo/FedScale && python /home/mdo/FedScale/fedscale/cloud/execution/executor.py  --time_stamp 1014_131400 --ps_ip 172.16.66.90 --job_name test --log_path /home/mdo/FedScale/benchmark --num_participants 3 --data_set cifar10 --data_dir /home/mdo/FedScale/benchmark/dataset/data/ --model custom_cnn --model_zoo fedscale-torch-zoo --eval_interval 1 --rounds 2 --filter_less 0 --num_loaders 2 --local_steps 1 --learning_rate 0.01 --batch_size 32 --test_bsz 32 --use_cuda False --save_checkpoint False --this_rank=3 --num_executors=3 --cuda_device=cuda:0
