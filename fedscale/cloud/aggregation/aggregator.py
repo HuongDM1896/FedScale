@@ -12,7 +12,6 @@ from concurrent import futures
 import grpc
 import numpy as np
 import torch
-import wandb
 from torch.utils.tensorboard import SummaryWriter
 
 import fedscale.cloud.channels.job_api_pb2_grpc as job_api_pb2_grpc
@@ -110,32 +109,6 @@ class Aggregator(job_api_pb2_grpc.JobServiceServicer):
             "perf": collections.OrderedDict(),
         }
         self.log_writer = SummaryWriter(log_dir=logger.logDir)
-        if args.wandb_token != "":
-            os.environ["WANDB_API_KEY"] = args.wandb_token
-            self.wandb = wandb
-            if self.wandb.run is None:
-                self.wandb.init(
-                    project=f"fedscale-{args.job_name}",
-                    name=f"aggregator{args.this_rank}-{args.time_stamp}",
-                    group=f"{args.time_stamp}",
-                )
-                self.wandb.config.update(
-                    {
-                        "num_participants": args.num_participants,
-                        "data_set": args.data_set,
-                        "model": args.model,
-                        "gradient_policy": args.gradient_policy,
-                        "eval_interval": args.eval_interval,
-                        "rounds": args.rounds,
-                        "batch_size": args.batch_size,
-                        "use_cuda": args.use_cuda,
-                    }
-                )
-            else:
-                logging.error("Warning: wandb has already been initialized")
-            # self.wandb.run.name = f'{args.job_name}-{args.time_stamp}'
-        else:
-            self.wandb = None
 
         # ======== Task specific ============
         self.init_task_context()
@@ -646,17 +619,6 @@ class Aggregator(job_api_pb2_grpc.JobServiceServicer):
             "Train/client_duration (min)", self.flatten_client_duration, self.round
         )
 
-        if self.wandb != None:
-            self.wandb.log(
-                {
-                    "Train/round_to_loss": avg_loss,
-                    "Train/round_duration (min)": self.round_duration / 60.0,
-                    "Train/client_duration (min)": self.flatten_client_duration,
-                    "Train/time_to_round (min)": self.global_virtual_clock / 60.0,
-                },
-                step=self.round,
-            )
-
     def log_test_result(self):
         """Log testing result on TensorBoard and optionally WanDB"""
         self.log_writer.add_scalar(
@@ -690,12 +652,6 @@ class Aggregator(job_api_pb2_grpc.JobServiceServicer):
                 np.array(self.model_weights, dtype=object),
                 allow_pickle=True,
                 )
-            if self.wandb != None:
-                artifact = self.wandb.Artifact(
-                    name="model_" + str(self.this_rank), type="model"
-                )
-                artifact.add_file(local_path=self.temp_model_path)
-                self.wandb.log_artifact(artifact)
 
     def deserialize_response(self, responses):
         """Deserialize the response from executor
@@ -1015,8 +971,6 @@ class Aggregator(job_api_pb2_grpc.JobServiceServicer):
     def stop(self):
         """Stop the aggregator"""
         logging.info(f"Terminating the aggregator ...")
-        if self.wandb != None:
-            self.wandb.finish()
         time.sleep(5)
 
 

@@ -146,6 +146,9 @@ from fedscale.utils.models.cv_models.xdensenet import *
 from fedscale.utils.models.cv_models.xdensenet_cifar import *
 from fedscale.utils.models.cv_models.zfnet import *
 from fedscale.utils.models.cv_models.custom_cnn import CustomNet
+from fedscale.utils.models.cv_models.cifar_resnet18 import model_resnet18
+from fedscale.utils.models.cv_models.cifar_mobilenetv2 import model_mobilenetv2
+
 # from fedscale.utils.models.cv_models.others.oth_quartznet import *
 
 # from fedscale.utils.models.cv_models.others.oth_pose_resnet import *
@@ -166,6 +169,8 @@ __all__ = ['get_model']
 
 _models = {
     'custom_cnn': CustomNet,
+    'resnet18_cus': model_resnet18,
+    'mobilenetv2_cus': model_mobilenetv2,
     'alexnet': alexnet,
     'alexnetb': alexnetb,
 

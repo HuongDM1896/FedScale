@@ -22,7 +22,7 @@ SERVER = ips[0]
 CLIENTS = ips[1:]
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-m", "--model", type=str, default="Net")
+parser.add_argument("-m", "--model", type=str, default="custom_cnn")
 parser.add_argument("-e", "--exp", type=str, required=True, help="Experiment name")
 args = parser.parse_args()
 
@@ -44,7 +44,14 @@ DATA_DIR = f"{BASE_DIR}/benchmark/dataset/data/cifar"
 LOG_PATH = f"{BASE_DIR}/benchmark"
 log_dir = f"{BASE_DIR}/{OUTPUT}" #Fedscale/Log/
 
-fedscale_log_dir = os.path.join(log_dir, f"Fedscale_{EXP}", f"Fedscale_{MODEL}")
+if MODEL == "custom_cnn":
+    name = "Net"
+elif MODEL == "resnet18_cus":
+    name = "ResNet18"
+elif MODEL == "mobilenetv2_cus":
+    name = "MobileNetV2"
+
+fedscale_log_dir = os.path.join(log_dir, f"Fedscale_{EXP}", f"Fedscale_{name}")
 SAVE = f"{fedscale_log_dir}/Fedscale_{timestamp}"
 os.makedirs(SAVE, exist_ok=True)
 
